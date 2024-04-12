@@ -1,0 +1,56 @@
+#### CORR PEARSON YEAR-BY-YEAR (ALL COUNTRIES)
+fig = None
+nazioni_selezionate = ['AUT',	'BEL',	'BIH',	'BGR',	'HRV',	'CZE',	'DNK',	'FIN',	'FRA',	'DEU', 'GBR',	'GRC',	'HUN', 'IRL', 'ITA', 'LVA',	'LTU',	'LUX', 'NLD', 'NOR', 'POL',	'ROU',	'RUS',	'SVN',	'ESP', 'SWE', 'CHE', 'TUR',	'UKR']
+anni = [2009, 2011, 2013, 2015, 2017, 2019]
+
+for anno in anni:
+    # Seleziona le colonne corrispondenti all'anno attuale
+    biologico_anno = consumo_biologico_df[['Code', anno]]
+    diabete_anno = diabete_df[['Code', anno]]
+    cancro_anno = cancro_df[['Code', anno]]
+
+    # Verifica la presenza di valori mancanti
+    dati_cluster = pd.merge(biologico_anno, diabete_anno, on='Code')
+    dati_cluster = pd.merge(dati_cluster, cancro_anno, on='Code')
+    dati_cluster = dati_cluster[dati_cluster['Code'].isin(nazioni_selezionate)]
+    dati_cluster = dati_cluster.drop('Code', axis=1)
+
+    nuovi_nomi_colonne = ['Organic consumption', 'Diabetes prevalence', 'Cancer prevalence']
+    dati_cluster.columns = nuovi_nomi_colonne
+
+    correlation_matrix = dati_cluster.corr()
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=.5)
+    plt.title(f'Correlation Matrix (Pearson) - {anno}')
+    plt.show()
+
+#### CORR PEARSON CUMULATIVE (ALL COUNTRIES)
+# mean cons bio
+selected_df_b = consumo_biologico_df[consumo_biologico_df['Code'].isin(nazioni_selezionate)]
+selected_df_b = selected_df_b[['Code'] + anni]
+selected_df_b['Mean_b'] = selected_df_b[anni].mean(axis=1)
+final_df_b = selected_df_b[['Code', 'Mean_b']]
+
+# mean cancer
+selected_df_c = cancro_df[cancro_df['Code'].isin(nazioni_selezionate)]
+selected_df_c = selected_df_c[['Code'] + anni]
+selected_df_c['Mean_c'] = selected_df_c[anni].mean(axis=1)
+final_df_c = selected_df_c[['Code', 'Mean_c']]
+
+# mean diabet
+selected_df_d = diabete_df[diabete_df['Code'].isin(nazioni_selezionate)]
+selected_df_d = selected_df_d[['Code'] + anni]
+selected_df_d['Mean_d'] = selected_df_d[anni].mean(axis=1)
+final_df_d = selected_df_d[['Code', 'Mean_d']]
+
+dati_final = pd.merge(final_df_b, final_df_c, on='Code')
+dati_final = pd.merge(dati_final, final_df_d, on='Code')
+dati_final_d=dati_final.drop('Code', axis=1)
+
+############### PEARSON CORRELATION (MEAN)
+dati_final_d.columns = ['Organic consumption', 'Cancer prevalence', 'Diabetes prevalence']
+correlation_matrix = dati_final_d.corr()
+plt.figure(figsize=(8, 6))
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=.5)
+plt.title('Correlation Matrix (Pearson) Cumulative')
+plt.show()
