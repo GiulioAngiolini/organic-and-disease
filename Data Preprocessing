@@ -1,0 +1,58 @@
+consumo_biologico_df = pd.read_excel(r'C:\Users\giulg\OneDrive\Desktop\Dati_tesi.xlsx', sheet_name='OrPerCapitaCons')
+diabete_df = pd.read_excel(r'C:\Users\giulg\OneDrive\Desktop\Dati_tesi.xlsx', sheet_name='diabete_Atlas')
+cancro_df = pd.read_excel(r'C:\Users\giulg\OneDrive\Desktop\cancro_our_world_csv.xlsx')
+
+# MISSING VALUES ORGANIC CONSUMPTION
+selected_columns = [year for year in range(2000, 2022)]
+plt.figure(figsize=(10, 6))
+sns.heatmap(consumo_biologico_df[selected_columns].isnull(), cmap='viridis', cbar=False)
+plt.title('Missing Values Visualization')
+plt.xlabel('Years')
+plt.ylabel('Country Code')
+plt.xticks(rotation=45)
+plt.yticks(ticks=range(len(consumo_biologico_df)), labels=consumo_biologico_df['Code'])
+plt.axvline(x=selected_columns.index(2009), color='red', linestyle='--')
+plt.tight_layout()
+plt.show()
+
+## TREND ORGANIC CONSUMPTION
+selected_columns = [year for year in range(2000, 2022)]
+global_trend = consumo_biologico_df[selected_columns].mean(axis=0)
+plt.figure(figsize=(12, 8))
+
+# trend for each country
+for i, row in consumo_biologico_df.iterrows():
+    country_trend = row[selected_columns]
+    plt.plot(selected_columns, country_trend, label=row['Code'])
+
+# global trend
+plt.plot(selected_columns, global_trend, label='Global Trend', color='black', linestyle='--', linewidth=2.8)
+plt.title('Organic Food Consumption Trends')
+plt.xlabel('Year')
+plt.ylabel('Consumption (per capita)')
+plt.xticks(rotation=45)
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# TREND DIABETES
+selected_columns_d = [2009, 2011, 2013, 2015, 2017, 2019]
+global_trend_d = diabete_df[selected_columns_d].mean(axis=0)
+plt.figure(figsize=(12, 8))
+
+# trend for each country
+for i, row in diabete_df.iterrows():
+    country_trend = row[selected_columns_d]
+    plt.plot(selected_columns_d, country_trend, label=row['Code'])
+
+# global trend
+plt.plot(selected_columns_d, global_trend_d, label='Global Trend', color='black', linestyle='--', linewidth=2.8)
+plt.title('Diabetes Prevalence Trends')
+plt.xlabel('Year')
+plt.ylabel('Diabetes Prevalence')
+plt.xticks(rotation=45)
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
