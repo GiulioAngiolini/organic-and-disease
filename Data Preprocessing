@@ -2,6 +2,13 @@ consumo_biologico_df = pd.read_excel(r'C:\Users\giulg\OneDrive\Desktop\Dati_tesi
 diabete_df = pd.read_excel(r'C:\Users\giulg\OneDrive\Desktop\Dati_tesi.xlsx', sheet_name='diabete_Atlas')
 cancro_df = pd.read_excel(r'C:\Users\giulg\OneDrive\Desktop\cancro_our_world_csv.xlsx')
 
+# CANCER DATASET ADJUSTMENT
+df_pivot = cancro_df.drop('Entity', axis=1)
+df_pivot = df_pivot.pivot_table(index='Code', columns='Year', values='Prevalence', aggfunc='first')
+df_pivot['Code'] = df_pivot['Code'].astype(str)
+df_pivot.reset_index(inplace=True)
+cancro_df = df_pivot
+
 # MISSING VALUES ORGANIC CONSUMPTION
 selected_columns = [year for year in range(2000, 2022)]
 plt.figure(figsize=(10, 6))
