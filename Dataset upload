@@ -1,0 +1,3 @@
+consumo_biologico_df = pd.read_excel(r'C:\Users\giulg\OneDrive\Desktop\Dati_tesi.xlsx', sheet_name='OrPerCapitaCons')
+diabete_df = pd.read_excel(r'C:\Users\giulg\OneDrive\Desktop\Dati_tesi.xlsx', sheet_name='diabete_Atlas')
+cancro_df = pd.read_excel(r'C:\Users\giulg\OneDrive\Desktop\cancro_our_world_csv.xlsx')
