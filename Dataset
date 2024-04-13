@@ -1,0 +1,12 @@
+# Dataset A
+consumo_biologico_df = pd.read_excel(r'C:\Users\giulg\OneDrive\Desktop\Dati_tesi.xlsx', sheet_name='OrPerCapitaCons')
+diabete_df = pd.read_excel(r'C:\Users\giulg\OneDrive\Desktop\Dati_tesi.xlsx', sheet_name='diabete_Atlas')
+cancro_df = pd.read_excel(r'C:\Users\giulg\OneDrive\Desktop\cancro_our_world_csv.xlsx')
+
+# Dataset B
+consumo_biologico_df = pd.read_excel(r'C:\Users\giulg\OneDrive\Desktop\Dati_tesi.xlsx', sheet_name='OrPerCapitaCons')
+cancro_df = pd.read_excel(r'C:\Users\giulg\OneDrive\Desktop\cancro_our_world_csv.xlsx')
+
+# Dataset C
+consumo_biologico_df = pd.read_excel(r'C:\Users\giulg\OneDrive\Desktop\Dati_tesi.xlsx', sheet_name='OrPerCapitaCons')
+cancro_type_df = pd.read_csv(r'C:\Users\giulg\OneDrive\Desktop\share-of-population-with-cancer-types.csv')
