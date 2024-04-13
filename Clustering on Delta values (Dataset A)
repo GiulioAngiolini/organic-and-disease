@@ -1,0 +1,75 @@
+nazioni_selezionate = ['AUT',	'BEL',	'BIH',	'BGR',	'HRV',	'CZE',	'DNK',	'FIN',	'FRA',	'DEU', 'GBR',	'GRC',	'HUN', 'IRL', 'ITA', 'LVA',	'LTU',	'LUX', 'NLD', 'NOR', 'POL',	'ROU',	'RUS',	'SVN',	'ESP', 'SWE', 'CHE', 'TUR',	'UKR']
+anni = [2009, 2011, 2013, 2015, 2017, 2019]
+
+# Delta dataset creation
+dfs_delta = []
+for df, category in zip([consumo_biologico_df, cancro_df, diabete_df], ['biologico', 'cancro', 'diabete']):
+    df_selected = df[df['Code'].isin(nazioni_selezionate)]
+    df_delta = pd.DataFrame({'Code': df_selected['Code']})
+
+    for i in range(1, len(anni)):
+        for j in range(i):
+            delta_col_name = f"{category}_{anni[i]}-{anni[j]}"
+            df_delta[delta_col_name] = df_selected[anni[i]] - df_selected[anni[j]]
+
+    dfs_delta.append(df_delta)
+
+# Merging datset on 'Code'
+dfs_delta_ = pd.merge(dfs_delta[0], dfs_delta[1], on='Code')
+dfs_delta = pd.merge(dfs_delta_, dfs_delta[2], on='Code')
+print(dfs_delta)
+
+scaler = StandardScaler()
+df_combined_delta_normalized = pd.DataFrame(scaler.fit_transform(dfs_delta.drop('Code', axis=1)), columns=dfs_delta.columns[1:])
+print(df_combined_delta_normalized)
+
+columns_to_cluster = df_combined_delta_normalized.columns
+df_cluster_results = pd.DataFrame(index=df_combined_delta_normalized.index)
+
+def get_column_groups(columns):
+    column_groups = []
+    unique_years = set()
+
+    for col in columns:
+        year_pair = col.split('_')[-1].split('-')
+        unique_years.update([tuple(year_pair)])
+
+    for year_tuple in sorted(unique_years):
+        column_group = [col for col in columns if all(year in col for year in year_tuple)]
+        column_groups.append(column_group)
+
+    return column_groups
+
+
+# Clustering for groups of columns
+for col_group in get_column_groups(columns_to_cluster):
+    col_group_df = df_combined_delta_normalized[col_group]
+    col_group_df_no_nan = col_group_df.dropna()
+    clusterer = AffinityPropagation()
+    clusters = clusterer.fit_predict(col_group_df_no_nan)
+    df_cluster_results[col_group[0] + '_Cluster'] = np.nan
+    df_cluster_results.loc[col_group_df_no_nan.index, col_group[0] + '_Cluster'] = clusters
+
+# Add columns to dataframe
+df_cluster_results['Code'] = dfs_delta['Code']
+
+df_cluster_results.columns = df_cluster_results.columns.str.extract(r'(\d{4}-\d{4})')[0]
+print(df_cluster_results.columns)
+last_column = df_cluster_results.columns[-1]
+
+# Creation of a dictionary with a new labelling
+new_column_name = 'Code'
+rename_dict = {last_column: new_column_name}
+df_cluster_results = df_cluster_results.rename(columns=rename_dict)
+df_subset = df_cluster_results[['2011-2009', '2013-2009', '2013-2011', '2015-2009', '2015-2011', '2015-2013', '2017-2009', '2017-2011', '2017-2013', '2017-2015', '2019-2009', '2019-2011', '2019-2013', '2019-2015', '2019-2017', 'Code']]
+melted_df = pd.melt(df_subset, id_vars='Code', var_name='Delta', value_name='Cluster')
+melted_df = melted_df.dropna(subset=['Cluster'])
+print(melted_df)
+
+# ANIMATED MAP
+fig = None
+fig = px.choropleth(melted_df, locations='Code', color='Cluster', hover_name=melted_df['Code'],
+                    projection='natural earth', scope='europe', animation_frame='Delta',
+                    title='Clustering Delta Nazioni')
+
+fig.show()
