@@ -1,0 +1,137 @@
+nazioni_selezionate = ['AUT',	'BEL',	'BIH',	'BGR',	'HRV',	'CZE',	'DNK',	'FIN',	'FRA',	'DEU', 'GBR',	'GRC',	'HUN', 'IRL', 'ITA', 'LVA',	'LTU',	'LUX', 'NLD', 'NOR', 'POL',	'ROU',	'RUS',	'SVN',	'ESP', 'SWE', 'CHE', 'TUR',	'UKR']
+anni = [2009, 2011, 2013, 2015, 2017, 2019]
+
+# mean cons bio
+selected_df_b = consumo_biologico_df[consumo_biologico_df['Code'].isin(nazioni_selezionate)]
+selected_df_b = selected_df_b[['Code'] + anni]
+selected_df_b['Mean_b'] = selected_df_b[anni].mean(axis=1)
+final_df_b = selected_df_b[['Code', 'Mean_b']]
+
+# mean cancer
+selected_df_c = cancro_df[cancro_df['Code'].isin(nazioni_selezionate)]
+selected_df_c = selected_df_c[['Code'] + anni]
+selected_df_c['Mean_c'] = selected_df_c[anni].mean(axis=1)
+final_df_c = selected_df_c[['Code', 'Mean_c']]
+
+# mean diabet
+selected_df_d = diabete_df[diabete_df['Code'].isin(nazioni_selezionate)]
+selected_df_d = selected_df_d[['Code'] + anni]
+selected_df_d['Mean_d'] = selected_df_d[anni].mean(axis=1)
+final_df_d = selected_df_d[['Code', 'Mean_d']]
+
+dati_final = pd.merge(final_df_b, final_df_c, on='Code')
+dati_final = pd.merge(dati_final, final_df_d, on='Code')
+dati_final_d=dati_final.drop('Code', axis=1)
+
+######### AP RANGE PREFERENCE ####
+scaler = StandardScaler()
+X_normalized = scaler.fit_transform(dati_final_d)
+
+no_of_clusters = []
+preferences = range(-30,30,1)
+af_sil_score = []
+
+for p in preferences:
+    AF = AffinityPropagation(preference=p, max_iter=100).fit(X_normalized)
+    no_of_clusters.append((len(np.unique(AF.labels_))))
+    af_sil_score.append(silhouette_score(X_normalized, AF.labels_))
+    
+af_results = pd.DataFrame([preferences, no_of_clusters, af_sil_score], index=['preference','clusters', 'sil_score']).T
+af_results.sort_values(by='sil_score', ascending=False).head()
+
+af_results_senza_nan = af_results.dropna()
+af_results_senza_nan.sort_values(by='sil_score', ascending=False)
+print(af_results_senza_nan)
+
+fig, ax = plt.subplots(figsize=(12,5))
+ax = sns.lineplot(data=af_results_senza_nan, x='preference', y='sil_score', marker='o', ax=ax)
+ax.set_title("Silhouette score method")
+ax.set_xlabel("Preference")
+ax.set_ylabel("Silhouette score")
+ax.axvline(-2, ls="--", c="red")
+plt.grid()
+plt.show()
+
+AF = AffinityPropagation(preference=-2).fit(X_normalized)
+AF_clustered = pd.DataFrame(X_normalized, columns=['feature1', 'feature2', 'feature3'])
+AF_clustered['Cluster'] = AF.labels_
+
+AF_clust_sizes = AF_clustered.groupby('Cluster').size().to_frame()
+AF_clust_sizes.columns = ["AF_size"]
+AF_clust_sizes
+
+### AFFINITY PROPAGATION CLUSTERING WITH PREFERENCE DEFAULT (MEDIAN)
+scaler = StandardScaler()
+X_normalized = scaler.fit_transform(dati_final_d)
+
+clusterer = AffinityPropagation()
+cluster_labels = clusterer.fit_predict(X_normalized)
+dati_final_d['Cluster'] = cluster_labels
+
+
+AF_clust_sizes = dati_final_d.groupby('Cluster').size().to_frame()
+AF_clust_sizes.columns = ["AF_size"]
+AF_clust_sizes
+
+dati_final_d.columns = ['Organic Per Capita Consumption', 'Prevalence of Cancer', 'Prevalence of Diabet', 'Cluster']
+# Convertire i codici delle nazioni in stringhe
+dati_final_d['Code'] = dati_final['Code'].astype(str)
+print(dati_final_d)
+print(X_normalized)
+
+############### SILHOUETTE SCORE ###################################
+silhouette_avg = silhouette_score(X_normalized, labels=dati_final_d['Cluster'])
+print("Silhouette Score:", silhouette_avg)
+
+clusters = dati_final_d['Cluster']
+countries = dati_final_d['Code']
+
+# PLOT CLUSTERING ORGANIC VS CANCER
+plt.figure(figsize=(10, 6))
+for cluster in sorted(set(clusters)):
+    cluster_data = dati_final_d[clusters == cluster]
+    plt.scatter(cluster_data['Organic Per Capita Consumption'], cluster_data['Prevalence of Cancer'], label=f'Cluster {cluster}', alpha=0.8)
+
+legend_labels = {cluster: ', '.join(countries[clusters == cluster]) for cluster in sorted(set(clusters))}
+plt.legend(title='Cluster Legend', labels=[f'{key}: {value}' for key, value in legend_labels.items()], loc='upper right', bbox_to_anchor=(1, 1))
+plt.xlabel('Organic Per Capita Consumption')
+plt.ylabel('Prevalence of Cancer')
+plt.title('Organic Consumption vs. Cancer Prevalence')
+plt.grid(True)
+plt.show()
+
+# PLOT CLUSTERING ORGANIC VS DIABETES
+plt.figure(figsize=(10, 6))
+for cluster in sorted(set(clusters)):
+    cluster_data = dati_final_d[clusters == cluster]
+    plt.scatter(cluster_data['Organic Per Capita Consumption'], cluster_data['Prevalence of Diabet'], label=f'Cluster {cluster}', alpha=0.8)
+
+plt.legend(title='Cluster Legend', labels=[f'{key}: {value}' for key, value in legend_labels.items()], loc='upper right', bbox_to_anchor=(1, 1))
+plt.xlabel('Organic Per Capita Consumption')
+plt.ylabel('Prevalence of Diabetes')
+plt.title('Organic Consumption vs. Diabetes Prevalence')
+plt.grid(True)
+plt.show()
+
+################################## PLOT 3D CUMULATIVE CLUSTERING ############################
+fig = plt.figure(figsize=(10, 8))
+ax = fig.add_subplot(111, projection='3d')
+
+
+scatter = ax.scatter(dati_final_d['Organic Per Capita Consumption'],
+                     dati_final_d['Prevalence of Cancer'],
+                     dati_final_d['Prevalence of Diabet'],
+                     c=dati_final_d['Cluster'],
+                     s=50, cmap='viridis', edgecolor='k')
+
+
+ax.set_xlabel('Mean Organic Per Capita Consumption')
+ax.set_ylabel('Mean Prevalence Cancer')
+ax.set_zlabel('Mean Prevalence Diabetes')
+ax.set_title('3D View of Clustering')
+
+legend_labels = ax.get_legend().get_texts()
+for i, label in enumerate(legend_labels):
+    label.set_text(f'Cluster {i}')
+
+plt.show()
