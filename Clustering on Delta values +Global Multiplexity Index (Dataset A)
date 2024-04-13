@@ -73,3 +73,64 @@ fig = px.choropleth(melted_df, locations='Code', color='Cluster', hover_name=mel
                     title='Clustering Delta Nazioni')
 
 fig.show()
+
+#################################### GLOBAL MULTIPLEXITY #########################################################
+
+def count_same_cluster_pairs(df):
+    cluster_counts = {}
+    for year in df['Delta'].unique():
+        year_df = df[df['Delta'] == year]
+        for cluster in year_df['Cluster'].unique():
+            cluster_countries = year_df[year_df['Cluster'] == cluster]['Code'].tolist()
+            for i in range(len(cluster_countries)):
+                for j in range(i + 1, len(cluster_countries)):
+                    pair = tuple(sorted([cluster_countries[i], cluster_countries[j]]))
+                    if pair not in cluster_counts:
+                        cluster_counts[pair] = 0
+                    cluster_counts[pair] += 1
+    return cluster_counts
+
+
+cluster_pairs_count = count_same_cluster_pairs(melted_df)
+
+# Print pairs of countries which share the same cluster
+for pair, count in cluster_pairs_count.items():
+    print(f"{pair[0]} - {pair[1]}: {count} volte")
+
+countries = ['AUT',	'BEL',	'BIH',	'BGR',	'HRV',	'CZE',	'DNK',	'FIN',	'FRA',	'DEU', 'GBR',	'GRC',	'HUN', 'IRL', 'ITA', 'LVA',	'LTU',	'LUX', 'NLD', 'NOR', 'POL',	'ROU',	'RUS',	'SVN',	'ESP', 'SWE', 'CHE', 'TUR',	'UKR']
+
+# Empty matrix dim len(countries) x len(countries)
+matrix = np.zeros((len(countries), len(countries)), dtype=int)
+
+# Add cluster count
+for pair, count in cluster_pairs_count.items():
+    i = countries.index(pair[0])
+    j = countries.index(pair[1])
+    matrix[i][j] = count
+    matrix[j][i] = count 
+
+print(matrix)
+
+# Heatmap
+plt.figure(figsize=(10, 8))
+plt.imshow(np.tril(matrix), cmap='Blues', interpolation='nearest')
+
+# Add axis labels
+plt.xticks(range(len(countries)), countries, rotation=90)
+plt.yticks(range(len(countries)), countries)
+
+# Add text on cells
+for i in range(len(countries)):
+    for j in range(len(countries)):
+        if j <= i:  
+            if i == j: 
+                plt.text(j, i, matrix[i, j], ha='center', va='center', color='red')
+            else:
+                plt.text(j, i, matrix[i, j], ha='center', va='center', color='black')
+
+plt.colorbar(label='Count')
+plt.title('Global Multiplexity Index Heatmap')
+plt.xlabel('Country')
+plt.ylabel('Country')
+plt.tight_layout()
+plt.show()
