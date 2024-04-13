@@ -1,0 +1,113 @@
+keywords = ['Entity', 'Year', 'liver', 'stomach', 'esophageal', 'pancreatic', 'colon', 'rectum', 'gallbladder']
+selected_columns = cancro_type_df.filter(regex='|'.join(keywords))
+# Merging dataset on Year and Country
+merged_df = pd.merge(consumo_biologico_df, selected_columns, on=['Entity', 'Year'], how='inner')
+print(merged_df)
+merged_df.rename(columns={"Current number of cases of liver cancer per 100 people, in both sexes aged age-standardized": "liver",
+                           "Current number of cases of stomach cancer per 100 people, in both sexes aged age-standardized": "stomach",
+                           "Current number of cases of pancreatic cancer per 100 people, in both sexes aged age-standardized": "pancreatic",
+                           "Current number of cases of esophageal cancer per 100 people, in both sexes aged age-standardized": "esophageal",
+                           "Current number of cases of colon and rectum cancer per 100 people, in both sexes aged age-standardized": "colon and rectum",
+                           "Current number of cases of gallbladder and biliary tract cancer per 100 people, in both sexes aged age-standardized": "gallbladder"}, inplace=True)
+merged_df.head()
+merged_df_drop = merged_df.drop(['Entity', 'Year'], axis=1)
+
+merged_df['Cancro apparato digerente'] = merged_df.iloc[:, 3:].sum(axis=1)
+merged_df_drop = merged_df.drop(['liver', 'stomach', 'pancreatic', 'esophageal', 'colon and rectum', 'gallbladder'], axis=1)
+
+scaler = StandardScaler()
+data_scaled = scaler.fit_transform(merged_df_drop[['Cons_bio', 'Cancro apparato digerente']])
+
+cluster_results = []
+fig = None
+for year in merged_df_drop['Year'].unique():
+    data_year = merged_df_drop[merged_df_drop['Year'] == year]
+    ap = AffinityPropagation()
+    clusters = ap.fit_predict(data_scaled[data_year.index])
+    cluster_results.append({
+        'Year': year,
+        'Countries': data_year['Entity'],
+        'Clusters': clusters
+    })
+
+final_df = pd.concat([pd.DataFrame(result) for result in cluster_results])
+
+# ANIMATED MAP
+fig = px.choropleth(final_df, 
+                    locations="Countries", 
+                    locationmode="country names",
+                    color="Clusters",
+                    animation_frame="Year",
+                    color_continuous_scale=px.colors.qualitative.Light24,
+                    projection="natural earth",
+                    scope='europe',
+                    title="Clusterizzazione delle nazioni europee per anno",
+                    labels={'Clusters': 'Cluster'}
+                    )
+
+fig.show()
+
+#################################### GLOBAL MULTIPLEXITY #########################################################
+
+def count_same_cluster_pairs(df):
+    cluster_counts = {}
+    for year in df['Year'].unique():
+        year_df = df[df['Year'] == year]
+        for cluster in year_df['Clusters'].unique():
+            cluster_countries = year_df[year_df['Clusters'] == cluster]['Countries'].tolist()
+            for i in range(len(cluster_countries)):
+                for j in range(i + 1, len(cluster_countries)):
+                    pair = tuple(sorted([cluster_countries[i], cluster_countries[j]]))
+                    if pair not in cluster_counts:
+                        cluster_counts[pair] = 0
+                    cluster_counts[pair] += 1
+    return cluster_counts
+
+# Count pairs of countries which share the same cluster
+cluster_pairs_count = count_same_cluster_pairs(final_df)
+
+# Print pairs of countries which share the same cluster
+for pair, count in cluster_pairs_count.items():
+    print(f"{pair[0]} - {pair[1]}: {count} volte")
+
+countries = ['Austria', 'Belgium', 'Bulgaria', 'Croatia', 'Czechia', 'Denmark', 'Finland',
+ 'France', 'Germany', 'Greece', 'Hungary', 'Ireland', 'Italy', 'Luxembourg',
+ 'Netherlands', 'Norway', 'Poland', 'Romania', 'Russia', 'Slovenia', 'Spain',
+ 'Sweden', 'Switzerland', 'Turkey', 'Ukraine', 'United Kingdom',
+ 'Bosnia and Herzegovina', 'Latvia', 'Lithuania']
+
+# Empty matrix dim len(countries) x len(countries)
+matrix = np.zeros((len(countries), len(countries)), dtype=int)
+
+# Add cluster count
+for pair, count in cluster_pairs_count.items():
+    i = countries.index(pair[0])
+    j = countries.index(pair[1])
+    matrix[i][j] = count
+    matrix[j][i] = count 
+
+print(matrix)
+
+# Heatmap
+plt.figure(figsize=(10, 8))
+plt.imshow(np.tril(matrix), cmap='Blues', interpolation='nearest')
+
+# Add axis labels
+plt.xticks(range(len(countries)), countries, rotation=90)
+plt.yticks(range(len(countries)), countries)
+
+# Add text into cells
+for i in range(len(countries)):
+    for j in range(len(countries)):
+        if j <= i: 
+            if i == j: 
+                plt.text(j, i, matrix[i, j], ha='center', va='center', color='red')
+            else:
+                plt.text(j, i, matrix[i, j], ha='center', va='center', color='black')
+
+plt.colorbar(label='Count')
+plt.title('Global Multiplexity Index Heatmap')
+plt.xlabel('Country')
+plt.ylabel('Country')
+plt.tight_layout()
+plt.show()
