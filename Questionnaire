@@ -1,0 +1,81 @@
+# SALARY VS ORGANIC CONSUMPTION
+stipendi = risposte_biologico['Qual è la tua fascia di reddito annuale? ']
+consumo_biologico = risposte_biologico['Indicativamente, in quale proporzione acquisti cibo biologico e convenzionale? ']
+
+# Mapping salary brackets
+mapping_stipendi = {
+    '12 000€ o meno': 1,
+    '12 999€ - 19 999€': 2,
+    '20 000€ - 24 999€': 3,
+    '25 000€ - 39 999€': 4,
+    '40 000€ - 49 999€': 5,
+    '50 000€ o più': 6
+}
+
+# Mapping answers on organic consumption
+mapping_consumo_biologico = {
+    '5% biologico | 95% convenzionale': 5,
+    '20% biologico | 80% convenzionale': 20,
+    '50% biologico | 50% convenzionale': 50,
+    '80% biologico | 20% convenzionale': 80,
+    '95% biologico | 5% convenzionale': 95
+}
+
+# Trasform salary brackets into numbers
+stipendi_numerici = stipendi.map(mapping_stipendi)
+
+# Trasform organic consumption answers into numbers
+consumo_biologico_numerico = consumo_biologico.map(mapping_consumo_biologico)
+
+df = pd.DataFrame({'Stipendio': stipendi_numerici, 'Consumo Biologico': consumo_biologico_numerico})
+
+# Group for salary brackets and calculate mean of consumption
+df_grouped = df.groupby('Stipendio').mean()
+
+# Plot 1
+plt.figure(figsize=(10, 6))
+plt.plot(df_grouped.index, df_grouped['Consumo Biologico'], marker='o', color='skyblue', linestyle='-')
+plt.xlabel('Salary')
+plt.ylabel('Average percentage of organic purchases (%)')
+plt.title('Average percentage of organic purchases by salary category')
+plt.xticks(list(mapping_stipendi.values()), list(mapping_stipendi.keys()), rotation=45)
+plt.tight_layout()
+plt.show()
+
+
+# ORGANIC KNOWLEDGE VS ORGANIC CONSUMPTION
+risposte_biologico = risposte_biologico[risposte_biologico['Qual è la tua fascia di reddito annuale? '] != 'Preferisco non rispondere']
+
+# Creation of a function for calculating organic score 
+def calculate_score(row):
+    correct_answers = ['È naturale', 'Non ha alcuna sostanza aggiuntiva', 'Il termine ‘biologico’ è riportato nell’etichetta del prodotto']
+    respondent_answers = row['Tra le seguenti caratteristiche, quali sono quelle che indicano che un prodotto è biologico? (Si può selezionare più di una risposta)']
+    if isinstance(respondent_answers, str): 
+        respondent_answers = respondent_answers.split(', ') 
+    else:
+        respondent_answers = [] 
+    
+    correct_count = sum([1 for answer in respondent_answers if answer in correct_answers])
+    
+    if correct_count == 0:
+        return 0
+    elif correct_count == 1:
+        return 1
+    elif correct_count == 2:
+        return 3
+    else:
+        return 5
+
+risposte_biologico['Punteggio'] = risposte_biologico.apply(calculate_score, axis=1)
+
+grouped_data = risposte_biologico.groupby('Qual è la tua fascia di reddito annuale? ')['Punteggio'].mean().reset_index()
+
+# Plot 2
+plt.figure(figsize=(10, 6))
+plt.bar(grouped_data['Qual è la tua fascia di reddito annuale? '], grouped_data['Punteggio'], color='skyblue')
+plt.xlabel('Salary')
+plt.ylabel('Average scores on knowledge of organic products')
+plt.title('Knowledge of organic products by salary')
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
