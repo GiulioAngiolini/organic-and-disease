@@ -32,6 +32,7 @@ for anno in anni:
 
 print(result_df)
 
+#ANIMATED MAP
 fig = px.choropleth(result_df, locations='Code', color='Cluster', hover_name=result_df['Code'],
                     projection='natural earth', scope='europe', animation_frame='Year',
                     title='European nations Year-by-Year Clustering')
