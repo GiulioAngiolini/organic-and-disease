@@ -1,0 +1,101 @@
+nazioni_selezionate = ['AUT',	'BEL',	'BIH',	'BGR',	'HRV',	'CZE',	'DNK',	'FIN',	'FRA',	'DEU', 'GBR',	'GRC',	'HUN', 'IRL', 'ITA', 'LVA',	'LTU',	'LUX', 'NLD', 'NOR', 'POL',	'ROU',	'RUS',	'SVN',	'ESP', 'SWE', 'CHE', 'TUR',	'UKR']
+anni = [2009, 2011, 2013, 2015, 2017, 2019]
+
+#### CLUSTERING YEAR-BY-YEAR
+result_df = pd.DataFrame()
+fig = None
+
+for anno in anni:
+    # Seleziona le colonne corrispondenti all'anno attuale
+    biologico_anno = consumo_biologico_df[['Code', anno]]
+    diabete_anno = diabete_df[['Code', anno]]
+    cancro_anno = cancro_df[['Code', anno]]
+
+    # Verifica la presenza di valori mancanti
+    dati_cluster = pd.merge(biologico_anno, diabete_anno, on='Code')
+    dati_cluster = pd.merge(dati_cluster, cancro_anno, on='Code')
+    dati_cluster = dati_cluster[dati_cluster['Code'].isin(nazioni_selezionate)]
+    
+
+    # Seleziona solo le righe senza valori mancanti
+    dati_cluster = dati_cluster.dropna()
+    dati_cluster.columns = dati_cluster.columns.astype(str)
+    
+
+    aff_prop = AffinityPropagation()
+    cluster_labels = aff_prop.fit_predict(dati_cluster.drop('Code', axis=1))
+    dati_cluster['Cluster'] = cluster_labels
+    print(dati_cluster)
+    dati_cluster = dati_cluster.assign(Year=str(anno))[['Code', 'Cluster', 'Year']]
+    result_df = pd.concat([result_df, dati_cluster.assign(Year=anno)[['Code', 'Cluster', 'Year']]], ignore_index=True)
+
+
+print(result_df)
+
+fig = px.choropleth(result_df, locations='Code', color='Cluster', hover_name=result_df['Code'],
+                    projection='natural earth', scope='europe', animation_frame='Year',
+                    title='European nations Year-by-Year Clustering')
+
+fig.show()
+
+#################################### GLOBAL MULTIPLEXITY #########################################################
+
+def count_same_cluster_pairs(df):
+    cluster_counts = {}
+    for year in df['Year'].unique():
+        year_df = df[df['Year'] == year]
+        for cluster in year_df['Cluster'].unique():
+            cluster_countries = year_df[year_df['Cluster'] == cluster]['Code'].tolist()
+            for i in range(len(cluster_countries)):
+                for j in range(i + 1, len(cluster_countries)):
+                    pair = tuple(sorted([cluster_countries[i], cluster_countries[j]]))
+                    if pair not in cluster_counts:
+                        cluster_counts[pair] = 0
+                    cluster_counts[pair] += 1
+    return cluster_counts
+
+# Count country pairs within the same cluster
+cluster_pairs_count = count_same_cluster_pairs(result_df)
+
+# Print country pairs within the same cluster
+for pair, count in cluster_pairs_count.items():
+    print(f"{pair[0]} - {pair[1]}: {count} volte")
+
+countries = ['AUT',	'BEL',	'BIH',	'BGR',	'HRV',	'CZE',	'DNK',	'FIN',	'FRA',	'DEU', 'GBR',	'GRC',	'HUN', 'IRL', 'ITA', 'LVA',	'LTU',	'LUX', 'NLD', 'NOR', 'POL',	'ROU',	'RUS',	'SVN',	'ESP', 'SWE', 'CHE', 'TUR',	'UKR']
+
+# Empty matrix dim len(countries) x len(countries)
+matrix = np.zeros((len(countries), len(countries)), dtype=int)
+
+# Add cluster count
+for pair, count in cluster_pairs_count.items():
+    i = countries.index(pair[0])
+    j = countries.index(pair[1])
+    matrix[i][j] = count
+    matrix[j][i] = count 
+
+
+print(matrix)
+
+# Heatmap
+plt.figure(figsize=(10, 8))
+plt.imshow(np.tril(matrix), cmap='Blues', interpolation='nearest')
+
+# Add axis labels
+plt.xticks(range(len(countries)), countries, rotation=90)
+plt.yticks(range(len(countries)), countries)
+
+# Add text into cells
+for i in range(len(countries)):
+    for j in range(len(countries)):
+        if j <= i: 
+            if i == j: 
+                plt.text(j, i, matrix[i, j], ha='center', va='center', color='red')
+            else:
+                plt.text(j, i, matrix[i, j], ha='center', va='center', color='black')
+
+plt.colorbar(label='Count')
+plt.title('Global Multiplexity Index Heatmap')
+plt.xlabel('Country')
+plt.ylabel('Country')
+plt.tight_layout()
+plt.show()
